@@ -17,6 +17,18 @@ func GenerateInitScript(info *sysinfo.SystemInfo) string {
 	}
 }
 
+// GetInitCommand 获取初始化命令提示
+func GetInitCommand(info *sysinfo.SystemInfo) string {
+	switch info.Shell {
+	case "powershell":
+		return fmt.Sprintf("iex (& '%s')", info.BinPath)
+	case "fish":
+		return fmt.Sprintf("eval (%s)", info.BinPath)
+	default:
+		return fmt.Sprintf("eval $(%s)", info.BinPath)
+	}
+}
+
 // generatePowerShellScript 生成 PowerShell 初始化脚本
 func generatePowerShellScript(info *sysinfo.SystemInfo) string {
 	return fmt.Sprintf(`# smartCmd init output for PowerShell

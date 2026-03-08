@@ -80,6 +80,9 @@ func runInitMode(cfg *config.Config) {
 
 	// 生成并输出初始化脚本
 	fmt.Println()
+	fmt.Println("要在当前 shell 中启用 smartCmd，请执行：")
+	fmt.Printf("  %s\n", initpkg.GetInitCommand(info))
+	fmt.Println()
 	script := initpkg.GenerateInitScript(info)
 	fmt.Print(script)
 }
