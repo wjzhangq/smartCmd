@@ -42,9 +42,17 @@ func main() {
 		userInput := strings.Join(os.Args[2:], " ")
 		runParseAndRunMode(cfg, userInput)
 
+	case "runShell":
+		if len(os.Args) < 3 {
+			ui.PrintError("用法: smartCmd runShell <脚本文件路径>")
+			os.Exit(1)
+		}
+		scriptPath := os.Args[2]
+		runShellMode(cfg, scriptPath)
+
 	default:
 		ui.PrintError(fmt.Sprintf("未知命令: %s", command))
-		ui.PrintError("可用命令: parse, parseAndRun")
+		ui.PrintError("可用命令: parse, parseAndRun, runShell")
 		os.Exit(1)
 	}
 }
@@ -180,3 +188,77 @@ func runParseAndRunMode(cfg *config.Config, userInput string) {
 		os.Exit(4)
 	}
 }
+
+// runShellMode 脚本执行模式
+func runShellMode(cfg *config.Config, scriptPath string) {
+	if !cfg.IsValid() {
+		ui.PrintError("LLM 配置不完整，请先运行 smartCmd 进行初始化")
+		os.Exit(2)
+	}
+
+	// 验证脚本文件
+	if err := shell.ValidateScriptFile(scriptPath); err != nil {
+		ui.PrintError(err.Error())
+		os.Exit(1)
+	}
+
+	// 解析脚本
+	ui.PrintSpinning("解析脚本文件...")
+	commands, err := shell.ParseScript(scriptPath)
+	ui.ClearLine()
+
+	if err != nil {
+		ui.PrintError(fmt.Sprintf("解析脚本失败: %v", err))
+		os.Exit(1)
+	}
+
+	if len(commands) == 0 {
+		ui.PrintWarning("脚本为空，没有可执行的命令")
+		os.Exit(0)
+	}
+
+	ui.PrintSuccess(fmt.Sprintf("解析成功，共 %d 条命令", len(commands)))
+
+	// 检查危险命令
+	dangerousCmds, hasDangerous := shell.CheckDangerousCommands(commands)
+	if hasDangerous {
+		ui.PrintWarning(fmt.Sprintf("检测到 %d 条潜在危险命令：", len(dangerousCmds)))
+		for _, cmd := range dangerousCmds {
+			fmt.Printf("  - %s\n", cmd)
+		}
+		fmt.Print("\n确认执行整个脚本？(yes/no): ")
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(response) != "yes" {
+			ui.PrintWarning("用户取消执行")
+			os.Exit(0)
+		}
+	}
+
+	// 获取系统信息
+	info, err := sysinfo.Collect()
+	if err != nil {
+		ui.PrintError(fmt.Sprintf("采集系统信息失败: %v", err))
+		os.Exit(1)
+	}
+
+	// 创建 LLM 客户端
+	client := llm.NewClient(cfg)
+
+	// 执行脚本
+	fmt.Println()
+	ui.PrintExecute(fmt.Sprintf("开始执行脚本: %s", scriptPath))
+	ui.PrintSeparator("")
+
+	err = shell.ExecuteScriptWithRetry(commands, info.Shell, client, info.ToReadableString())
+
+	ui.PrintSeparator("")
+
+	if err != nil {
+		ui.PrintError(err.Error())
+		os.Exit(5)
+	}
+
+	ui.PrintSuccess("脚本执行完成！")
+}
+

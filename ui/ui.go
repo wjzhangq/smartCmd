@@ -102,3 +102,13 @@ func PrintSeparator(title string) {
 		fmt.Printf("─────────────── %s ───────────────\n", title)
 	}
 }
+
+// PrintRetry 打印重试信息
+func PrintRetry(message string) {
+	PrintStep("↻", ColorYellow, message)
+}
+
+// PrintScriptStep 打印脚本执行进度
+func PrintScriptStep(stepNum, totalSteps int, command string) {
+	fmt.Printf("%s[%d/%d]%s %s\n", ColorCyan, stepNum, totalSteps, ColorReset, command)
+}

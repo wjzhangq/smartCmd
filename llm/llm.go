@@ -22,6 +22,9 @@ var alternativePromptTemplate string
 //go:embed prompt/analyze.txt
 var analyzePromptTemplate string
 
+//go:embed prompt/fix.txt
+var fixPromptTemplate string
+
 // Message 表示聊天消息
 type Message struct {
 	Role    string `json:"role"`
@@ -259,4 +262,48 @@ func truncateOutput(output string, maxLen int) string {
 		return output
 	}
 	return output[:maxLen] + "\n... (输出已截断)"
+}
+
+// FixCommand 修复失败的命令
+func (c *Client) FixCommand(originalCmd, stdout, stderr, systemInfo, shellType string, exitCode int) (string, error) {
+	// 使用模板渲染修复提示
+	tmpl, err := template.New("fix").Parse(fixPromptTemplate)
+	if err != nil {
+		return "", fmt.Errorf("解析修复模板失败: %w", err)
+	}
+
+	var buf bytes.Buffer
+	data := map[string]interface{}{
+		"Shell":      shellType,
+		"SystemInfo": systemInfo,
+		"Command":    originalCmd,
+		"ExitCode":   exitCode,
+		"Stdout":     truncateOutput(stdout, 2000),
+		"Stderr":     truncateOutput(stderr, 2000),
+	}
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("渲染修复提示失败: %w", err)
+	}
+
+	prompt := buf.String()
+
+	messages := []Message{
+		{Role: "user", Content: prompt},
+	}
+
+	response, err := c.Chat(messages)
+	if err != nil {
+		return "", err
+	}
+
+	// 清理响应，移除可能的多余空白和换行
+	fixedCmd := strings.TrimSpace(response)
+
+	// 如果返回的是多行，只取第一行
+	lines := strings.Split(fixedCmd, "\n")
+	if len(lines) > 0 {
+		fixedCmd = strings.TrimSpace(lines[0])
+	}
+
+	return fixedCmd, nil
 }
