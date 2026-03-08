@@ -160,6 +160,16 @@ $ ? 安装 openclaw
 - 命令输出超过 4000 字符会自动截断
 - 所有命令以当前用户权限执行
 
+## Prompt 自定义
+
+所有 AI 提示词都存储在 `llm/prompt/` 目录下，可以根据需要修改：
+
+- `system.txt`: 命令解析的系统提示词
+- `alternative.txt`: 替代命令查找的提示词
+- `analyze.txt`: 命令输出分析的提示词
+
+修改后重新构建即可生效（使用 Go embed 在编译时嵌入）。
+
 ## 项目结构
 
 ```
@@ -169,6 +179,7 @@ smartCmd/
 ├── shell/          # Shell 类型检测和命令执行
 ├── ui/             # 终端交互界面
 ├── llm/            # LLM API 调用
+│   └── prompt/     # AI 提示词模板
 ├── validator/      # 命令验证和重试
 ├── init/           # 初始化脚本生成
 ├── main.go         # 主入口
